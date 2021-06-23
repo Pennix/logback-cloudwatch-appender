@@ -59,7 +59,7 @@ Minimal logback appender configuration:
 </appender>
 ```
 
-See the example [logback-test.xml file](src/main/java/resources/logback-test.xml).
+See the example [logback-test.xml file](src/main/resources/logback-test.xml).
 
 # IAM Permissions
 
