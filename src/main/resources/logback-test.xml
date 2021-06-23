@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE xml>
+<configuration debug="true" scan="true" scanPeriod="10 seconds">
+
+	<contextListener class="ch.qos.logback.classic.jul.LevelChangePropagator">
+		<resetJUL>true</resetJUL>
+	</contextListener>
+
+	<appender name="CLOUDWATCH" class="net.pennix.logback.appender.CloudWatchLogsAppender">
+		<queueSize>1024</queueSize>
+		<worker>
+			<accessKeyId></accessKeyId>
+			<secretAccessKey></secretAccessKey>
+			<region></region>
+			<logGroup>logback</logGroup>
+			<logStream>cloudwatchtest</logStream>
+			<layout>
+				<pattern>%1.-1level [%thread] %logger - %msg%n</pattern>
+			</layout>
+		</worker>
+	</appender>
+
+	<logger name="sun.net.www" additivity="false">
+		<level value="TRACE" />
+		<appender-ref ref="CLOUDWATCH" />
+	</logger>
+
+	<root level="INFO" additivity="false">
+		<appender-ref ref="CLOUDWATCH" />
+	</root>
+</configuration>
