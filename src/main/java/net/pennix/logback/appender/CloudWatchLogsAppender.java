@@ -13,7 +13,7 @@ public class CloudWatchLogsAppender extends UnsynchronizedAppenderBase<ILoggingE
 	/**
 	 * The default buffer size.
 	 */
-	public static final int DEFAULT_QUEUE_SIZE = 256;
+	public static final int DEFAULT_QUEUE_SIZE = 1024;
 
 	@Setter
 	int queueSize = DEFAULT_QUEUE_SIZE;
@@ -27,6 +27,9 @@ public class CloudWatchLogsAppender extends UnsynchronizedAppenderBase<ILoggingE
 
 	@Setter
 	int maxFlushTime = DEFAULT_MAX_FLUSH_TIME;
+
+	@Setter
+	boolean prepareForDeferredProcessing = false;
 
 	BlockingQueue<ILoggingEvent> blockingQueue;
 
@@ -96,7 +99,8 @@ public class CloudWatchLogsAppender extends UnsynchronizedAppenderBase<ILoggingE
 	protected void append(
 			ILoggingEvent eventObject
 	) {
-		eventObject.prepareForDeferredProcessing();
+		if (prepareForDeferredProcessing)
+			eventObject.prepareForDeferredProcessing();
 		blockingQueue.offer(eventObject);
 	}
 }

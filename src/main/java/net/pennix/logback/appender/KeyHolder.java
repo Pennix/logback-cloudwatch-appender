@@ -3,6 +3,7 @@ package net.pennix.logback.appender;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import java.security.InvalidKeyException;
+import java.security.Key;
 import java.security.NoSuchAlgorithmException;
 
 import javax.crypto.Mac;
@@ -24,15 +25,15 @@ public class KeyHolder {
 
 	private volatile String keyDate = null;
 
-	private volatile byte[] key = null;
+	private volatile Key key = null;
 
-	public byte[] getKey(
+	public Key getKey(
 			String date
 	) {
 		if (!date.equals(keyDate))
 			synchronized (this) {
 				if (!date.equals(keyDate)) {
-					key = createKey(date);
+					key = new SecretKeySpec(createKey(date), ALGORITHM);
 					keyDate = date;
 				}
 			}

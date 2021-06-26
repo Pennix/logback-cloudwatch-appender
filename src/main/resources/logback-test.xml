@@ -8,14 +8,17 @@
 
 	<appender name="CLOUDWATCH" class="net.pennix.logback.appender.CloudWatchLogsAppender">
 		<queueSize>1024</queueSize>
+		<maxFlushTime>1000</maxFlushTime>
+		<prepareForDeferredProcessing>true</prepareForDeferredProcessing>
 		<worker>
-			<accessKeyId></accessKeyId>
-			<secretAccessKey></secretAccessKey>
-			<region></region>
+			<accessKeyId>${LOGS_ACCESS_KEY_ID}</accessKeyId>
+			<secretAccessKey>${LOGS_SECRET_ACCESS_KEY}</secretAccessKey>
+			<region>${LOGS_REGION}</region>
 			<logGroup>logback</logGroup>
 			<logStream>cloudwatchtest</logStream>
+			<sleepTimeBetweenPuts>500</sleepTimeBetweenPuts>
 			<layout>
-				<pattern>%1.-1level [%thread] %logger - %msg%n</pattern>
+				<pattern>%1.-1level [%X{ip}-%X{user}] [%thread] %logger - %msg%n</pattern>
 			</layout>
 		</worker>
 	</appender>

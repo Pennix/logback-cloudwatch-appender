@@ -1,4 +1,4 @@
-package net.pennix;
+package net.pennix.logback;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;

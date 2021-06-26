@@ -2,6 +2,8 @@ package net.pennix.logback.appender;
 
 import static java.lang.String.format;
 import static java.lang.String.join;
+import static java.lang.Thread.interrupted;
+import static java.lang.Thread.sleep;
 import static java.net.http.HttpClient.Redirect.ALWAYS;
 import static java.net.http.HttpRequest.newBuilder;
 import static java.net.http.HttpRequest.BodyPublishers.ofString;
@@ -43,7 +45,6 @@ import java.util.TreeMap;
 import java.util.concurrent.BlockingQueue;
 
 import javax.crypto.Mac;
-import javax.crypto.spec.SecretKeySpec;
 import javax.json.JsonObject;
 
 import ch.qos.logback.classic.PatternLayout;
@@ -96,6 +97,9 @@ public class CloudWatchLogsWorker extends ContextAwareBase implements Runnable {
 	@Setter
 	private PatternLayout layout;
 
+	@Setter
+	private int sleepTimeBetweenPuts = 500;
+
 	private URI uri;
 
 	private KeyHolder keyHolder;
@@ -109,9 +113,6 @@ public class CloudWatchLogsWorker extends ContextAwareBase implements Runnable {
 		var endpoint = format("https://logs.%s.amazonaws.com%s/", region, region.startsWith("cn-") ? ".cn" : "");
 		uri = URI.create(endpoint);
 
-		layout.setContext(context);
-		layout.start();
-
 		keyHolder = new KeyHolder(service, region, secretAccessKey);
 
 		try {
@@ -121,14 +122,21 @@ public class CloudWatchLogsWorker extends ContextAwareBase implements Runnable {
 					nextToken = nextToken();
 					break;
 				} catch (IOException e) {
-					Thread.sleep(500);
+					sleep(500);
 				}
 		} catch (InterruptedException e) {
 			return;
 		}
 
 		var list = new LinkedList<ILoggingEvent>();
-		while (!Thread.interrupted()) {
+		while (!interrupted()) {
+			if (sleepTimeBetweenPuts > 0)
+				try {
+					sleep(sleepTimeBetweenPuts);
+				} catch (InterruptedException e) {
+					break;
+				}
+
 			int count = blockingQueue.drainTo(list, 10000);
 			if (count <= 0)
 				continue;
@@ -172,7 +180,7 @@ public class CloudWatchLogsWorker extends ContextAwareBase implements Runnable {
 		//@formatter:on
 
 		addInfo(format("%d events to push to %s", events.size(), logStream));
-		addInfo(format("Next token: %s", nextToken));
+		//addInfo(format("Next token: %s", nextToken));
 		if (nextToken != null)
 			json.add("sequenceToken", nextToken);
 		String body = json.build().toString();
@@ -181,8 +189,6 @@ public class CloudWatchLogsWorker extends ContextAwareBase implements Runnable {
 		var now = now();
 
 		var headers = getHeaders(now, "POST", "PutLogEvents", contentSHA256);
-		headers.put("Content-Type", "application/x-amz-json-1.1");
-		headers.put("Accept", "application/json");
 
 		Builder builder = newBuilder(uri).POST(ofString(body));
 		headers.forEach(builder::header);
@@ -204,8 +210,6 @@ public class CloudWatchLogsWorker extends ContextAwareBase implements Runnable {
 		var now = now();
 
 		var headers = getHeaders(now, "POST", "CreateLogGroup", contentSHA256);
-		headers.put("Content-Type", "application/x-amz-json-1.1");
-		headers.put("Accept", "application/json");
 
 		Builder builder = newBuilder(uri).POST(ofString(body));
 		headers.forEach(builder::header);
@@ -231,8 +235,6 @@ public class CloudWatchLogsWorker extends ContextAwareBase implements Runnable {
 		var now = now();
 
 		var headers = getHeaders(now, "POST", "DescribeLogStreams", contentSHA256);
-		headers.put("Content-Type", "application/x-amz-json-1.1");
-		headers.put("Accept", "application/json");
 
 		Builder builder = newBuilder(uri).POST(ofString(body));
 		headers.forEach(builder::header);
@@ -259,10 +261,6 @@ public class CloudWatchLogsWorker extends ContextAwareBase implements Runnable {
 		var now = now();
 
 		var headers = getHeaders(now, "POST", "CreateLogStream", contentSHA256);
-		//headers.put("Connection", "Keep-Alive");
-		headers.put("Content-Type", "application/x-amz-json-1.1");
-		//headers.put("Content-Length", valueOf(body.getBytes(UTF_8).length));
-		headers.put("Accept", "application/json");
 
 		Builder builder = newBuilder(uri).POST(ofString(body));
 		headers.forEach(builder::header);
@@ -283,13 +281,12 @@ public class CloudWatchLogsWorker extends ContextAwareBase implements Runnable {
 	) throws IOException, InterruptedException {
 
 		addInfo(format("%s to %s", request.method(), request.uri().toString()));
-		request.headers().map().forEach((key, values) -> addInfo(format("Request Header [%s]: %s", key, join(",", values))));
+		//request.headers().map().forEach((key, values) -> addInfo(format("Request Header [%s]: %s", key, join(",", values))));
 
 		HttpResponse<T> response = client.send(request, handler);
 
-		//addInfo(format("HTTP Version: %s", response.version()));
 		addInfo(format("Response Status: %d", response.statusCode()));
-		response.headers().map().forEach((key, values) -> addInfo(format("Response Header [%s]: %s", key, join(",", values))));
+		//response.headers().map().forEach((key, values) -> addInfo(format("Response Header [%s]: %s", key, join(",", values))));
 
 		return response;
 	}
@@ -308,6 +305,8 @@ public class CloudWatchLogsWorker extends ContextAwareBase implements Runnable {
 
 		String authorization = this.getAuthorization(now, method, uri.getPath(), headers, contentSHA256);
 		headers.put("Authorization", authorization);
+		headers.put("Content-Type", "application/x-amz-json-1.1");
+		headers.put("Accept", "application/json");
 
 		headers.remove("Host"); // not allowed to set forcibly
 		return headers;
@@ -346,11 +345,11 @@ public class CloudWatchLogsWorker extends ContextAwareBase implements Runnable {
 			Instant now,
 			String stringToSign
 	) {
-		byte[] key = keyHolder.getKey(DTF_DATE.format(now));
+		var key = keyHolder.getKey(DTF_DATE.format(now));
 
-		Mac mac = Mac.getInstance(ALGORITHM);
-		mac.init(new SecretKeySpec(key, ALGORITHM));
-		byte[] signature = mac.doFinal(stringToSign.getBytes(UTF_8));
+		var mac = Mac.getInstance(ALGORITHM);
+		mac.init(key);
+		var signature = mac.doFinal(stringToSign.getBytes(UTF_8));
 
 		return hexEncode(signature);
 	}
@@ -361,14 +360,17 @@ public class CloudWatchLogsWorker extends ContextAwareBase implements Runnable {
 		Map<String, String> map = new TreeMap<>();
 		if (headers != null && headers.size() > 0)
 			headers.forEach((key, value) -> map.put(key.toLowerCase(), value.trim()));
-		//headers.keySet().forEach(key -> map.put(key.toLowerCase(), headers.get(key).trim()));
 		return map;
 	}
 
 	private BodySubscriber<JsonObject> ofJson(
 			ResponseInfo responseInfo
 	) {
-		return mapping(ofByteArray(), bytes -> createReader(new ByteArrayInputStream(bytes)).readObject());
+		return mapping(ofByteArray(), bytes -> {
+			try (var reader = createReader(new ByteArrayInputStream(bytes))) {
+				return reader.readObject();
+			}
+		});
 	}
 
 	@SneakyThrows(NoSuchAlgorithmException.class)
