@@ -3,7 +3,7 @@
 
 	<groupId>net.pennix</groupId>
 	<artifactId>logback-cloudwatch-appender</artifactId>
-	<version>1.0.2-SNAPSHOT</version>
+	<version>1.0.2</version>
 	<packaging>jar</packaging>
 
 	<name>${project.groupId}:${project.artifactId}</name>
@@ -28,7 +28,7 @@
 		<url>https://github.com/Pennix/logback-cloudwatch-appender</url>
 		<connection>scm:git:git://github.com/Pennix/logback-cloudwatch-appender.git</connection>
 		<developerConnection>scm:git:ssh://git@github.com/Pennix/logback-cloudwatch-appender.git</developerConnection>
-		<tag>HEAD</tag>
+		<tag>logback-cloudwatch-appender-1.0.2</tag>
 	</scm>
 
 	<distributionManagement>
