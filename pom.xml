@@ -78,13 +78,13 @@
 			<groupId>javax.json</groupId>
 			<artifactId>javax.json-api</artifactId>
 			<version>${javax.jsonp.version}</version>
-			<scope>provided</scope>
 		</dependency>
 		<dependency>
 			<groupId>org.glassfish</groupId>
 			<artifactId>javax.json</artifactId>
 			<version>${javax.jsonp.version}</version>
 			<scope>runtime</scope>
+			<optional>true</optional>
 		</dependency>
 	</dependencies>
 

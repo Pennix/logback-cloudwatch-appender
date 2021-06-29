@@ -27,7 +27,6 @@ import java.io.StringReader;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
-import java.net.http.HttpRequest.Builder;
 import java.net.http.HttpResponse;
 import java.net.http.HttpResponse.BodyHandler;
 import java.net.http.HttpResponse.BodySubscriber;
@@ -35,6 +34,7 @@ import java.net.http.HttpResponse.ResponseInfo;
 import java.security.InvalidKeyException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.format.DateTimeFormatter;
 import java.util.Collection;
@@ -100,15 +100,21 @@ public class CloudWatchLogsWorker extends ContextAwareBase implements Runnable {
 	@Setter
 	private int sleepTimeBetweenPuts = 500;
 
+	@Setter
+	private int httpTimeout = 3000;
+
 	private URI uri;
 
 	private KeyHolder keyHolder;
+
+	private Duration timeout;
 
 	private volatile String nextToken;
 
 	@Override
 	public void run(
 	) {
+		this.timeout = Duration.ofMillis(httpTimeout);
 		region = region.toLowerCase();
 		var endpoint = format("https://logs.%s.amazonaws.com%s/", region, region.startsWith("cn-") ? ".cn" : "");
 		uri = URI.create(endpoint);
@@ -143,10 +149,10 @@ public class CloudWatchLogsWorker extends ContextAwareBase implements Runnable {
 
 			try {
 				doPutEvents(list);
-			} catch (IOException e) {
-				addError(e.toString(), e);
 			} catch (InterruptedException e) {
 				break;
+			} catch (Throwable e) {
+				addError(format("Failed to put %d events", count), e);
 			}
 
 			list.clear();
@@ -155,7 +161,7 @@ public class CloudWatchLogsWorker extends ContextAwareBase implements Runnable {
 		if (!blockingQueue.isEmpty()) {
 			try {
 				doPutEvents(blockingQueue);
-			} catch (IOException | InterruptedException e) {
+			} catch (Throwable e) {
 				addError(e.toString(), e);
 			}
 		}
@@ -190,7 +196,7 @@ public class CloudWatchLogsWorker extends ContextAwareBase implements Runnable {
 
 		var headers = getHeaders(now, "POST", "PutLogEvents", contentSHA256);
 
-		Builder builder = newBuilder(uri).POST(ofString(body));
+		var builder = newBuilder(uri).POST(ofString(body)).timeout(timeout);
 		headers.forEach(builder::header);
 
 		var response = request(builder.build(), this::ofJson);
@@ -211,7 +217,7 @@ public class CloudWatchLogsWorker extends ContextAwareBase implements Runnable {
 
 		var headers = getHeaders(now, "POST", "CreateLogGroup", contentSHA256);
 
-		Builder builder = newBuilder(uri).POST(ofString(body));
+		var builder = newBuilder(uri).POST(ofString(body)).timeout(timeout);
 		headers.forEach(builder::header);
 
 		var response = request(builder.build(), ofString());
@@ -236,7 +242,7 @@ public class CloudWatchLogsWorker extends ContextAwareBase implements Runnable {
 
 		var headers = getHeaders(now, "POST", "DescribeLogStreams", contentSHA256);
 
-		Builder builder = newBuilder(uri).POST(ofString(body));
+		var builder = newBuilder(uri).POST(ofString(body)).timeout(timeout);
 		headers.forEach(builder::header);
 		var response = request(builder.build(), this::ofJson);
 
@@ -262,7 +268,7 @@ public class CloudWatchLogsWorker extends ContextAwareBase implements Runnable {
 
 		var headers = getHeaders(now, "POST", "CreateLogStream", contentSHA256);
 
-		Builder builder = newBuilder(uri).POST(ofString(body));
+		var builder = newBuilder(uri).POST(ofString(body)).timeout(timeout);
 		headers.forEach(builder::header);
 
 		var response = request(builder.build(), ofString());
@@ -280,12 +286,12 @@ public class CloudWatchLogsWorker extends ContextAwareBase implements Runnable {
 			BodyHandler<T> handler
 	) throws IOException, InterruptedException {
 
-		addInfo(format("%s to %s", request.method(), request.uri().toString()));
+		//addInfo(format("%s to %s", request.method(), request.uri().toString()));
 		//request.headers().map().forEach((key, values) -> addInfo(format("Request Header [%s]: %s", key, join(",", values))));
 
 		HttpResponse<T> response = client.send(request, handler);
 
-		addInfo(format("Response Status: %d", response.statusCode()));
+		//addInfo(format("Response Status: %d", response.statusCode()));
 		//response.headers().map().forEach((key, values) -> addInfo(format("Response Header [%s]: %s", key, join(",", values))));
 
 		return response;

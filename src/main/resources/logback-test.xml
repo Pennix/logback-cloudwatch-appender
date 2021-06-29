@@ -16,9 +16,10 @@
 			<region>${LOGS_REGION}</region>
 			<logGroup>logback</logGroup>
 			<logStream>cloudwatchtest</logStream>
-			<sleepTimeBetweenPuts>500</sleepTimeBetweenPuts>
+			<sleepTimeBetweenPuts>1000</sleepTimeBetweenPuts>
+			<httpTimeout>2000</httpTimeout>
 			<layout>
-				<pattern>%1.-1level [%X{ip}-%X{user}] [%thread] %logger - %msg%n</pattern>
+				<pattern>%1.-1level %X{ip} [%thread] %logger - %msg%n</pattern>
 			</layout>
 		</worker>
 	</appender>
