@@ -200,8 +200,18 @@ public class CloudWatchLogsWorker extends ContextAwareBase implements Runnable {
 		headers.forEach(builder::header);
 
 		var response = request(builder.build(), this::ofJson);
-		if (response.statusCode() >= 400)
-			addError(response.body().toString());
+		if (response.statusCode() >= 400) {
+			var error = response.body();
+			addError(error.toString());
+			// {"__type":"InvalidSequenceTokenException","expectedSequenceToken":"49617997349516275096575587020759158024965747962391175298","message":"The given sequenceToken is invalid. The next expected sequenceToken is: 49617997349516275096575587020759158024965747962391175298"}
+			if ("InvalidSequenceTokenException".equalsIgnoreCase(error.getString("__type", ""))) {
+				String nextToken = error.getString("expectedSequenceToken", "");
+				if (!nextToken.isBlank()) {
+					this.nextToken = nextToken;
+					doPutEvents(events);
+				}
+			}
+		}
 		if (response.body().containsKey("nextSequenceToken"))
 			nextToken = response.body().getString("nextSequenceToken");
 	}

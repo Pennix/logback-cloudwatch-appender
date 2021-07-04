@@ -17,7 +17,7 @@ There're many projects out there but I created this because I don't want to incl
 		<groupId>net.pennix</groupId>
 		<artifactId>logback-cloudwatch-appender</artifactId>
 		<!-- NOTE: change this to the most recent release version from the repo -->
-		<version>1.0.1</version>
+		<version>1.0.3</version>
 		<scope>runtime</scope>
 	</dependency>
 </dependencies>
@@ -105,6 +105,10 @@ See the example [logback-test.xml file](src/main/resources/logback-test.xml).
 You should probably limit **Resource** to specific region/account/logGroup.
 
 # ChangeLog Release Notes
+
+## v1.0.3
+
+* auto correct *nextToken* on *InvalidSequenceTokenException*
 
 ## v1.0.2
 
